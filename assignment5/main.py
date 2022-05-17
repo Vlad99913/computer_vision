@@ -26,10 +26,10 @@ def smooth(path, radius):
     return smoothed_trajectory
 
 
-def fix_border(image):
+def fix_border(image, scale):
     s = image.shape
-    # Scale the image 4% without moving the center
-    T = cv2.getRotationMatrix2D((s[1] / 2, s[0] / 2), 0, 1.2)
+    # Scale the image without moving the center
+    T = cv2.getRotationMatrix2D((s[1] / 2, s[0] / 2), 0, scale)
     image = cv2.warpAffine(image, T, (s[1], s[0]))
     return image
 
@@ -143,9 +143,12 @@ for i in range(n_frames - 2):
     frame_stabilized = cv2.warpAffine(frame, m, (w, h))
 
     # Fix border artifacts
-    frame_stabilized = fix_border(frame_stabilized)
+    frame_stabilized = fix_border(frame_stabilized, 1.2)
 
     # Write the frame to the file
     out.write(frame_stabilized)
+
+cap.release()
+out.release()
 
 
