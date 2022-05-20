@@ -113,6 +113,7 @@ for i in range(n_frames - 2):
     # Fix border artifacts
     frame_stabilized = fix_border(frame_stabilized, 1.2)
 
+    # Write the original and stabilized frames side by side
     frame_out = cv2.hconcat([frame, frame_stabilized])
 
     # Write the frame to the file
