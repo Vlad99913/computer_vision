@@ -1,38 +1,4 @@
-# Import numpy and OpenCV
-import numpy as np
-import cv2
-
-
-def moving_average(curve, radius):
-    window_size = 2 * radius + 1
-    # Define the filter
-    f = np.ones(window_size) / window_size
-    # Add padding to the boundaries
-    curve_pad = np.lib.pad(curve, (radius, radius), 'edge')
-    # Apply convolution
-    curve_smoothed = np.convolve(curve_pad, f, mode='same')
-    # Remove padding
-    curve_smoothed = curve_smoothed[radius:-radius]
-    # return smoothed curve
-    return curve_smoothed
-
-
-def smooth(path, radius):
-    smoothed_trajectory = np.copy(path)
-    # Filter the x, y and angle curves
-    for j in range(3):
-        smoothed_trajectory[:, j] = moving_average(path[:, j], radius=radius)
-
-    return smoothed_trajectory
-
-
-def fix_border(image, scale):
-    s = image.shape
-    # Scale the image without moving the center
-    T = cv2.getRotationMatrix2D((s[1] / 2, s[0] / 2), 0, scale)
-    image = cv2.warpAffine(image, T, (s[1], s[0]))
-    return image
-
+from utils import *
 
 # Read input video
 cap = cv2.VideoCapture('video.mp4')
@@ -49,7 +15,7 @@ h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 
 # Set up output video
-out = cv2.VideoWriter('video_out.mp4', fourcc, fps, (w, h))
+out = cv2.VideoWriter('video_out.mp4', fourcc, fps, (2 * w, h))
 
 # Read first frame
 _, prev = cap.read()
@@ -105,9 +71,11 @@ for i in range(n_frames - 2):
 
 # Compute trajectory using cumulative sum of transformations
 trajectory = np.cumsum(transforms, axis=0)
+plot_trajectory(trajectory, "initial_trajectory.png")
 
 # Smooth the trajectory
 smooth_trajectory = smooth(trajectory, 30)
+plot_trajectory(smooth_trajectory, "smooth_trajectory.png")
 
 # Calculate difference in smoothed_trajectory and trajectory
 difference = smooth_trajectory - trajectory
@@ -145,8 +113,10 @@ for i in range(n_frames - 2):
     # Fix border artifacts
     frame_stabilized = fix_border(frame_stabilized, 1.2)
 
+    frame_out = cv2.hconcat([frame, frame_stabilized])
+
     # Write the frame to the file
-    out.write(frame_stabilized)
+    out.write(frame_out)
 
 cap.release()
 out.release()
