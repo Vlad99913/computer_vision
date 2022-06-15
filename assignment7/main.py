@@ -1,6 +1,5 @@
 import cv2 as cv
 import numpy as np
-import math
 
 
 def drawlines(img1, img2, lines, pts1, pts2):
@@ -11,10 +10,12 @@ def drawlines(img1, img2, lines, pts1, pts2):
     :param lines: corresponding epilines
     :param pts1: points in img1
     :param pts2: points in img2
+    :return: input images with feature points and epipolar lines
     """
     r, c = img1.shape
     img1 = cv.cvtColor(img1, cv.COLOR_GRAY2BGR)
     img2 = cv.cvtColor(img2, cv.COLOR_GRAY2BGR)
+    np.random.seed(0)
     for r, pt1, pt2 in zip(lines, pts1, pts2):
         color = tuple(np.random.randint(0, 255, 3).tolist())
         x0, y0 = map(int, [0, -r[2] / r[1]])
@@ -25,18 +26,43 @@ def drawlines(img1, img2, lines, pts1, pts2):
     return img1, img2
 
 
-def dist_pt_line(pt, line):
+def draw_line_H(img1, lines, pts, H):
     """
-    Compute the distance between a point and a line in 2D space
-    :param pt: point coordinates
-    :param line: (a, b, c) characterizing line ax + by + c = 0
-    :return: distance bewteen the  line and the point
+        Draw recified epilines
+        :param img1: image on which we draw the epilines for the points in img2
+        :param lines: corresponding epilines
+        :param pts: feature points in img1
+        :param H: homography matrix of img1
+        :return: Image with feature points and epipolar lines drawn
+        """
+    r, c = img1.shape
+    dst1 = cv.cvtColor(img1, cv.COLOR_GRAY2BGR)
+    np.random.seed(0)
+    for r, pt in zip(lines, pts):
+        color = tuple(np.random.randint(0, 255, 3).tolist())
+        x0, y0 = map(int, [0, -r[2] / r[1]])
+        x1, y1 = map(int, [c, -(r[2] + r[0] * c) / r[1]])
+        pts_warp = np.array([[x0, y0], [x1, y1], pt])
+        pts_warp = warp_pts(pts_warp, H)
+        dst1 = cv.line(dst1, tuple(pts_warp[0]), tuple(pts_warp[1]), color, 1)
+        dst1 = cv.circle(dst1, tuple(pts_warp[2]), 5, color, -1)
+    return dst1
+
+
+def warp_pts(pts, M):
     """
-    x, y = pt
-    a, b, c = line
-    nom = abs(a*x + b*y + c)
-    denom = math.sqrt(a**2 + b**2)
-    return nom/denom
+    Apply a homography to an array of points
+    :param pts: array of 2D points
+    :param M: Homography matrix
+    :return: Array of points after the homography
+    """
+    second = np.copy(pts)
+    for l in range(len(pts)):
+        p = pts[l]
+        px = (M[0][0] * p[0] + M[0][1] * p[1] + M[0][2]) / (M[2][0] * p[0] + M[2][1] * p[1] + M[2][2])
+        py = (M[1][0] * p[0] + M[1][1] * p[1] + M[1][2]) / (M[2][0] * p[0] + M[2][1] * p[1] + M[2][2])
+        second[l] = np.array([int(px), int(py)])
+    return second
 
 
 # Read the images
@@ -88,18 +114,25 @@ img3, img4 = drawlines(img2, img1, lines2, pts2, pts1)
 cv.imwrite("lines_left.jpg", img5)
 cv.imwrite("lines_right.jpg", img3)
 
-# Compute the distance between corresponding points and epipolar lines in img1
-distances1 = []
-for pt, line in zip(pts1, lines1):
-    dist = dist_pt_line(pt, line)
-    distances1.append(dist)
+# Stereo rectification (uncalibrated variant)
+h1, w1 = img1.shape
+h2, w2 = img2.shape
+_, H1, H2 = cv.stereoRectifyUncalibrated(np.float32(pts1), np.float32(pts2), F, imgSize=(w1, h1))
 
-# Compute the distance between corresponding points and epipolar lines in img2
-distances2 = []
-for pt, line in zip(pts2, lines2):
-    dist = dist_pt_line(pt, line)
-    distances2.append(dist)
+# Undistort (rectify) the images and save them
+img1_rectified = cv.warpPerspective(img1, H1, (w1, h1))
+img2_rectified = cv.warpPerspective(img2, H2, (w2, h2))
+cv.imwrite("rectified_left.png", img1_rectified)
+cv.imwrite("rectified_right.png", img2_rectified)
 
-# Display the average distance in each image
-print("Average distance between epiline and points in left image: ", sum(distances1)/len(distances1))
-print("Average distance between epiline and points in right image: ", sum(distances2)/len(distances2))
+# Draw the warped feature points and epipolar lines on each image
+img1_rectified_lines = draw_line_H(img1_rectified, lines1, pts1, H1)
+img2_rectified_lines = draw_line_H(img2_rectified, lines2, pts2, H2)
+
+cv.imwrite("rectified_left_lines.png", img1_rectified_lines)
+cv.imwrite("rectified_right_lines.png", img2_rectified_lines)
+
+# Create a disparity map
+stereo = cv.StereoBM_create(numDisparities=16, blockSize=5)
+disparity = stereo.compute(img1_rectified, img2_rectified)
+cv.imwrite("disparity.png", disparity)
