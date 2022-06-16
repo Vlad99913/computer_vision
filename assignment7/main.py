@@ -122,17 +122,17 @@ _, H1, H2 = cv.stereoRectifyUncalibrated(np.float32(pts1), np.float32(pts2), F, 
 # Undistort (rectify) the images and save them
 img1_rectified = cv.warpPerspective(img1, H1, (w1, h1))
 img2_rectified = cv.warpPerspective(img2, H2, (w2, h2))
-cv.imwrite("rectified_left.png", img1_rectified)
-cv.imwrite("rectified_right.png", img2_rectified)
+cv.imwrite("rectified_left.jpg", img1_rectified)
+cv.imwrite("rectified_right.jpg", img2_rectified)
 
 # Draw the warped feature points and epipolar lines on each image
 img1_rectified_lines = draw_line_H(img1_rectified, lines1, pts1, H1)
 img2_rectified_lines = draw_line_H(img2_rectified, lines2, pts2, H2)
 
-cv.imwrite("rectified_left_lines.png", img1_rectified_lines)
-cv.imwrite("rectified_right_lines.png", img2_rectified_lines)
+cv.imwrite("rectified_left_lines.jpg", img1_rectified_lines)
+cv.imwrite("rectified_right_lines.jpg", img2_rectified_lines)
 
 # Create a disparity map
 stereo = cv.StereoBM_create(numDisparities=16, blockSize=5)
 disparity = stereo.compute(img1_rectified, img2_rectified)
-cv.imwrite("disparity.png", disparity)
+cv.imwrite("disparity.jpg", disparity)
