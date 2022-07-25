@@ -111,7 +111,7 @@ def morph_triangle(img1, img2, img, t1, t2, t, alpha):
     mask = np.zeros((r[3], r[2], 3), dtype=np.float32)
     cv.fillConvexPoly(mask, np.int32(t_rect), (1.0, 1.0, 1.0), 16, 0)
 
-    # Apply warpImage to small rectangular patches
+    # Apply affine transformations to rectangular patches
     img1_rect = img1[r1[1]:r1[1] + r1[3], r1[0]:r1[0] + r1[2]]
     img2_rect = img2[r2[1]:r2[1] + r2[3], r2[0]:r2[0] + r2[2]]
 
